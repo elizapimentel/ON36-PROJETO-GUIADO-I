@@ -1,9 +1,10 @@
-import { ConflictException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { IAlunoService } from './Ialuno.service';
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { IAlunoService } from './IAlunoService';
 import { Aluno } from '../../../domain/aluno';
 import { IAlunoRepository } from '../output/IAluno.repository';
 import { AlunoFactory } from '../../../domain/factories/aluno-factory';
 import { CreateAlunoCommand } from '../../commands/create-aluno-command';
+import { ICursoRepository } from '../../../../cursos/application/ports/output/ICurso.repository';
 
 @Injectable()
 export class AlunoService implements IAlunoService {
@@ -11,6 +12,8 @@ export class AlunoService implements IAlunoService {
   constructor(
     @Inject(IAlunoRepository)
     private readonly repo: IAlunoRepository,
+    @Inject(ICursoRepository)
+    private readonly cursoRepo: ICursoRepository,
     private readonly alunoFactory: AlunoFactory,
   ) { }
 
@@ -52,21 +55,33 @@ export class AlunoService implements IAlunoService {
     return this.repo.listar();
   }
 
-  getByEmail(email:string): Aluno {
+  getByEmail(email: string): Aluno {
     return this.repo.encontrarPorEmail(email);
   }
 
+  async adicionarCurso(alunoId: string, cursoId: string): Promise<void> {
+    const aluno = await this.repo.encontrarPorId(alunoId);
+    const curso = await this.cursoRepo.encontrarPorId(cursoId);
+
+    if (!aluno) {
+      throw new NotFoundException('Aluno não encontrado');
+    }
+
+    if (!curso) {
+      throw new NotFoundException('Curso não encontrado');
+    }
+
+    if (aluno.cursos.find(c => c.id === cursoId)) {
+      throw new ConflictException('Aluno já está matriculado nesse curso');
+    }
+
+    aluno.cursos.push(curso);
+    
+    curso.alunos.push(aluno);
+
+    await this.repo.salvar(aluno);
+    await this.cursoRepo.salvar(curso);
+  }
 
 
-  // findOne(id: number) {
-  //   return `This action returns a #${id} aluno`;
-  // }
-
-  // update(id: number, updateAlunoDto: UpdateAlunoDto) {
-  //   return `This action updates a #${id} aluno`;
-  // }
-
-  // remove(id: number) {
-  //   return `This action removes a #${id} aluno`;
-  // }
 }
