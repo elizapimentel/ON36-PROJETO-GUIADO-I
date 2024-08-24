@@ -31,7 +31,8 @@ export class AlunoRepositoryInMemory implements IAlunoRepository {
         return this.alunos.find(aluno => aluno.email === email);
     }
 
-
-
+    encontrarPorId(alunoId: string): Aluno {
+        return this.alunos.find(aluno => aluno.id === alunoId);
+    }
 
 }
